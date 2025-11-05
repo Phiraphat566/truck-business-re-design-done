@@ -76,7 +76,7 @@ export const createAttendance = async (req, res) => {
 
     const created = await prisma.attendance.create({
       data: {
-        id, // <- ใช้ฟิลด์ Prisma ชื่อ id (แมปไปคอลัมน์ attendance_id ใน DB)
+        id, 
         employee_id: String(employeeId),
         work_date,
         check_in,
@@ -85,7 +85,7 @@ export const createAttendance = async (req, res) => {
       },
     });
 
-    // อัปเดต EDS เพื่อให้จุดสถานะหน้า Employee เปลี่ยนทันที
+  
     await recomputeAndUpsertEDS(String(employeeId), ymdUTC(work_date));
 
     return res.status(201).json(created);
@@ -185,13 +185,12 @@ export async function getMonthSummary(req, res) {
 
     const { start, end } = monthRangeUTC(year, month);
 
-    // 1) รายชื่อพนักงาน
     const employees = await prisma.employee.findMany({
       select: { id: true, name: true },
       orderBy: { id: 'asc' },
     });
 
-    // กริดว่าง
+
     const buildEmptyGrid = () => {
       const days = [];
       const daysInMonth = new Date(year, month, 0).getDate();
@@ -234,32 +233,31 @@ export async function getMonthSummary(req, res) {
       leaveMap.set(empDayKey(r.employee_id, ymdUTC(r.leave_date)), note);
     }
 
-    // 4) เติมกริดด้วยกติกา "ใช้ EDS ถ้ามี, ถ้าไม่มีให้ fallback ไป Attendance/Leave"
     const days = buildEmptyGrid();
     let ontime = 0, late = 0, absent = 0;
 
-    // ✅ NOT_CHECKED_IN -> undefined (ไม่มีข้อมูล), ไม่ใช่ ABSENT
+
     const edsToUi = (st) => {
       if (st === 'WORKING' || st === 'OFF_DUTY') return 'ON_TIME';
       if (st === 'ON_LEAVE') return 'LEAVE';
       if (st === 'ABSENT') return 'ABSENT';
-      return undefined; // NOT_CHECKED_IN or anything else -> no status
+      return undefined; 
     };
 
     for (const day of days) {
       for (const row of day.rows) {
         const key = empDayKey(row.employee_id, day.date);
 
-        // (1) มี EDS ก่อน
+       
        const eds = edsMap.get(key);
 if (eds) {
   const ui = edsToUi(eds);
   if (ui) {
-    // 👇 เพิ่มอ่าน attendance เพื่อดึง LATE / เวลา
+    
     const att = attMap.get(key);
 
     if (ui === 'ON_TIME') {
-      // ถ้ามีแถว attendance และตั้ง LATE → แสดง LATE
+      
       if (att?.status === 'LATE') {
         row.status = 'LATE';
         row.check_in  = att.check_in  ? hhmmFromDB(att.check_in)  : undefined;
@@ -284,13 +282,11 @@ if (eds) {
     continue;
   }
 }
-
-        // (2) ไม่มี EDS -> ใช้ Attendance/Leave
         const att = attMap.get(key);
         if (att) {
           row.check_in = hhmmFromDB(att.check_in);
           row.check_out = att.check_out ? hhmmFromDB(att.check_out) : '-';
-          row.status = att.status; // 'ON_TIME' | 'LATE'
+          row.status = att.status;
           row.note = '';
           if (row.status === 'ON_TIME') ontime++; else late++;
           continue;
@@ -304,8 +300,6 @@ if (eds) {
           continue;
         }
 
-        // (3) ไม่มีข้อมูลอะไรเลย -> ไม่ใส่สถานะ (เว้นว่างให้ UI แสดง "ยังไม่มีข้อมูล")
-        // ไม่เพิ่ม absent
       }
     }
 
@@ -383,7 +377,7 @@ export async function getEmployeeHistory(req, res) {
         const a = attByDay.get(d);
 
         if (edsSt === 'ON_TIME' && a?.status === 'LATE') {
-          // ✅ ถ้ามี attendance ระบุ LATE ให้ถือเป็น LATE
+         
           result.push({
             day: d,
             status: 'LATE',
@@ -403,7 +397,7 @@ export async function getEmployeeHistory(req, res) {
         continue;
       }
 
-      // ไม่มี EDS -> ใช้ Attendance/Leave
+      
       const a = attByDay.get(d);
       if (a) {
         result.push({ day: d, status: a.status, timeIn: hhmmFromDB(a.check_in) });
@@ -415,7 +409,7 @@ export async function getEmployeeHistory(req, res) {
         continue;
       }
 
-      // ไม่มีข้อมูลเลย -> ปล่อยว่าง (ให้ UI แสดง "ยังไม่มีข้อมูล")
+      
       result.push({ day: d });
     }
 
@@ -492,7 +486,7 @@ export async function getDashboardAttendance(req, res) {
     const [attRows, leaveRows] = await Promise.all([
       prisma.attendance.findMany({
         where: { work_date: { gte: start, lt: endEx } },
-        select: { employee_id: true, work_date: true, status: true }, // 'ON_TIME' | 'LATE'
+        select: { employee_id: true, work_date: true, status: true }, 
       }),
       prisma.leaveRequest.findMany({
         where: { leave_date: { gte: start, lt: endEx } },
@@ -501,9 +495,9 @@ export async function getDashboardAttendance(req, res) {
     ]);
 
     // รวมเป็นรายวัน (กันซ้ำต่อคนต่อวัน)
-    const seenAtt = new Set();   // empId@YYYY-MM-DD สำหรับ Attendance
-    const seenLv  = new Set();   // empId@YYYY-MM-DD สำหรับ Leave
-    const byDay   = new Map();   // ymd -> { onTime, late, leave }
+    const seenAtt = new Set();  
+    const seenLv  = new Set();   
+    const byDay   = new Map();   
 
     const accOf = (ymd) => {
       const o = byDay.get(ymd) || { onTime: 0, late: 0, leave: 0 };
@@ -514,18 +508,18 @@ export async function getDashboardAttendance(req, res) {
     for (const r of attRows) {
       const ymd = ymdUTC(r.work_date);
       const ek  = empDayKey(r.employee_id, ymd);
-      if (seenAtt.has(ek)) continue; // กันซ้ำ
+      if (seenAtt.has(ek)) continue; 
       seenAtt.add(ek);
       const o = accOf(ymd);
       if (r.status === 'LATE') o.late++;
-      else o.onTime++; // ถือว่าเป็น "ตรงเวลา" ถ้าไม่ใช่ LATE
+      else o.onTime++; 
     }
 
     for (const r of leaveRows) {
       const ymd = ymdUTC(r.leave_date);
       const ek  = empDayKey(r.employee_id, ymd);
-      if (seenAtt.has(ek)) continue; // มีเช็คอินแล้ว ไม่นับเป็นลา
-      if (seenLv.has(ek)) continue;  // กันซ้ำใบลา
+      if (seenAtt.has(ek)) continue;
+      if (seenLv.has(ek)) continue;  
       seenLv.add(ek);
       const o = accOf(ymd);
       o.leave++;
@@ -537,7 +531,7 @@ export async function getDashboardAttendance(req, res) {
       const ymd = ymdUTC(d);
       const o   = byDay.get(ymd) || { onTime: 0, late: 0, leave: 0 };
       const present   = o.onTime + o.late;
-      const hasAny    = (present + o.leave) > 0; // วันนั้นมีข้อมูลเข้า/ลาไหม?
+      const hasAny    = (present + o.leave) > 0; 
       const absent    = (hasAny || countAbsentWhenNoData)
         ? Math.max(0, working - present - o.leave)
         : 0;
@@ -604,7 +598,7 @@ export const findOneByEmpAndDate = async (req, res) => {
 
     if (!rec) return res.status(404).json({ error: 'not found' });
 
-    // เพิ่มฟิลด์ HH:mm ที่แปลงฝั่งเซิร์ฟเวอร์ (ใช้ util เดียวกับ summary)
+    
     const withHHMM = {
       ...rec,
       check_in_hhmm:  rec.check_in  ? hhmmFromDB(rec.check_in)   : null,

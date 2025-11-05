@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
-/** แปลงข้อมูล staff ให้ปลอดภัยสำหรับฝั่งหน้า */
+
 const safeStaff = (s) => ({
   staff_id: s.staff_id,
   username: s.username,
@@ -18,12 +18,12 @@ const safeStaff = (s) => ({
   created_at: s.created_at,
 });
 
-/** สร้าง JWT */
+
 function signToken(payload, opts = {}) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN, ...opts });
 }
 
-/** สุ่มรหัสกู้คืน (อ่านง่าย ไม่ปน 0/O/I/l) */
+
 function randomCode(len = 10) {
   const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let out = '';
@@ -31,9 +31,7 @@ function randomCode(len = 10) {
   return out;
 }
 
-/* ======================================
- * 1) Login ปกติ
- * ====================================== */
+/*  Login  */
 export async function login(req, res) {
   try {
     const { username, password } = req.body || {};
@@ -60,9 +58,7 @@ export async function login(req, res) {
   }
 }
 
-/* ======================================
- * 2) ดึงข้อมูลตัวเอง
- * ====================================== */
+/* ดึงข้อมูลตัวเอง*/
 export async function me(req, res) {
   try {
     const staffId = Number(req.user?.staff_id ?? req.user?.sid);
@@ -76,10 +72,7 @@ export async function me(req, res) {
   }
 }
 
-/* ======================================
- * 3) สร้างรหัสกู้คืน (ต้องล็อกอินปกติ)
- *    POST /api/auth/recovery/generate  body: { count?: number, days?: number }
- * ====================================== */
+/*    POST /api/auth/recovery/generate  body: { count?: number, days?: number } */
 export async function generateRecoveryCodes(req, res, next) {
   try {
     const staffId = Number(req.user?.staff_id ?? req.user?.sid);
@@ -95,23 +88,20 @@ export async function generateRecoveryCodes(req, res, next) {
       plainCodes.map(async (code) => ({
         staff_id: staffId,
         code_hash: await bcrypt.hash(code, 10),
-        expires_at: expireAt, // จะเป็นวันหมดอายุเดียวกันทั้งหมด
+        expires_at: expireAt, 
       }))
     );
 
     await prisma.staffRecoveryCode.createMany({ data: rows });
 
-    // ส่ง “โค้ดจริง” กลับครั้งเดียว (อย่าเก็บฝั่ง frontend นาน)
+   
     res.json({ codes: plainCodes, expires_at: expireAt });
   } catch (err) {
     next(err);
   }
 }
 
-/* ======================================
- * 4) ล็อกอินด้วย "รหัสกู้คืน"
- *    POST /api/auth/recovery/login  body:{ username, code }
- * ====================================== */
+/* POST /api/auth/recovery/login  body:{ username, code }*/
 export async function recoveryLogin(req, res, next) {
   try {
     const { username, code } = req.body || {};
@@ -125,14 +115,11 @@ export async function recoveryLogin(req, res, next) {
     });
     if (!staff) return res.status(400).json({ message: 'ข้อมูลไม่ถูกต้อง' });
 
-    // หาโค้ดที่ยังใช้ได้:
-    //  - อนุญาตถาวร (expires_at = NULL) หรือยังไม่หมดอายุ
-    //  - ถ้าต้องการ "ใช้ครั้งเดียว" ให้เพิ่ม used_at: null และ mark used หลังผ่าน
     const candidates = await prisma.staffRecoveryCode.findMany({
       where: {
         staff_id: staff.staff_id,
         OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
-        // used_at: null, // <- เปิดคอมเมนต์ ถ้าต้องการ one-time
+
       },
       orderBy: { id: 'desc' },
       take: 100,
@@ -147,10 +134,6 @@ export async function recoveryLogin(req, res, next) {
       return res.status(400).json({ message: 'รหัสกู้คืนไม่ถูกต้อง หรือหมดอายุ' });
     }
 
-    // ถ้าอยากให้ "ใช้ครั้งเดียว" ให้ mark used ที่นี่
-    // await prisma.staffRecoveryCode.update({ where: { id: matched.id }, data: { used_at: new Date() } });
-
-    // ออก token โหมด recovery (อายุสั้น)
     const token = signToken(
       { staff_id: staff.staff_id, sid: staff.staff_id, role: staff.role, mode: 'recovery' },
       { expiresIn: '30m' }
@@ -162,10 +145,7 @@ export async function recoveryLogin(req, res, next) {
   }
 }
 
-/* ======================================
- * 5) ตั้งรหัสใหม่ (ต้องมี token — ปกติหรือโหมด recovery)
- *    POST /api/auth/password/set  body:{ newPassword }
- * ====================================== */
+/*  POST /api/auth/password/set  body:{ newPassword }*/
 export async function setNewPassword(req, res, next) {
   try {
     const staffId = Number(req.user?.staff_id ?? req.user?.sid);

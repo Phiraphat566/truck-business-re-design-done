@@ -106,24 +106,27 @@ export class TimeInOutComponent implements OnInit {
 edit = {
   open: false,
   id: '' as string | null,
+  leaveId: null as number | null,
   date: '',
   empId: '',
   empName: '',
-  form: { checkIn: '', checkOut: '', status: 'ON_TIME' as UiEditStatus }
+  form: { checkIn: '', checkOut: '', status: 'ON_TIME' as UiEditStatus, note: '' }
 };
 openEdit(
   dateYmd: string, empId: string, empName?: string,
   id?: string, checkIn?: string, checkOut?: string,
-  status?: UiEditStatus
+  status?: UiEditStatus, leaveId?: number | null, note?: string
 ) {
   this.edit.open = true;
   this.edit.date = dateYmd;
   this.edit.empId = empId;
   this.edit.empName = empName || '';
   this.edit.id = id || null;
+  this.edit.leaveId = leaveId ?? null;
   this.edit.form.checkIn  = checkIn  || '';
   this.edit.form.checkOut = checkOut || '';
   this.edit.form.status   = status   || 'ON_TIME';
+  this.edit.form.note = note || '';
 }
   closeEdit() { this.edit.open = false; }
 
@@ -435,6 +438,26 @@ async loadYears() {
 async clickEdit(dateYmd: string, empId: string, empName?: string) {
   const row = await this.findAttendance(empId, dateYmd);
   if (!row) {
+    // ถ้าไม่มี Attendance ให้เช็คว่ามี LeaveRequest ไหม
+    try {
+      const [Y, M] = dateYmd.split('-').map(Number);
+      const res = await firstValueFrom(this.http.get<any>(`/api/leaves`, { params: { employeeId: empId, year: String(Y), month: String(M) } }));
+      const found = (res || []).find((l: any) => {
+        const d = new Date(l.leave_date);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${dd}` === dateYmd;
+      });
+      if (found) {
+        this.openEdit(dateYmd, empId, empName || '', undefined, '', '', 'LEAVE', found.leave_id, found.reason || '');
+        return;
+      }
+    } catch (err) {
+      console.warn('[clickEdit] find leave failed', err);
+    }
+
+    // เปิดฟอร์มใหม่แบบว่าง
     this.openEdit(dateYmd, empId, empName || '', undefined, '', '', 'ON_TIME');
     return;
   }
@@ -450,21 +473,61 @@ async clickEdit(dateYmd: string, empId: string, empName?: string) {
 
 
   async clickDelete(dateYmd: string, empId: string) {
-    const row = await this.findAttendance(empId, dateYmd);
-    if (!row) {
-      this.openAlert('ไม่มีข้อมูลสำหรับวันนั้น', 'ยังไม่มีบันทึกของพนักงานคนนี้ให้ลบ');
-      return;
-    }
-    this.openConfirm('ลบรายการนี้?', 'คุณต้องการลบการบันทึกของวันดังกล่าวใช่ไหม', async () => {
-      this.closeConfirm();
-      try {
-        await firstValueFrom(this.http.delete(`${this.attendanceApi}/${row.id}`));
-        await this.refreshMonth();
-        this.openAlert('สำเร็จ', 'ลบข้อมูลเรียบร้อย');
-      } catch {
-        this.openAlert('ผิดพลาด', 'ลบข้อมูลไม่สำเร็จ');
+      const row = await this.findAttendance(empId, dateYmd);
+
+      // ถ้ามี Attendance ให้ลบ Attendance
+      if (row) {
+        this.openConfirm('ลบรายการนี้?', 'คุณต้องการลบการบันทึกของวันดังกล่าวใช่ไหม', async () => {
+          this.closeConfirm();
+          try {
+            await firstValueFrom(this.http.delete(`${this.attendanceApi}/${row.id}`));
+            await this.refreshMonth();
+            this.openAlert('สำเร็จ', 'ลบข้อมูลเรียบร้อย');
+          } catch (err) {
+            console.error('[clickDelete] delete attendance failed', err);
+            this.openAlert('ผิดพลาด', 'ลบข้อมูลไม่สำเร็จ');
+          }
+        });
+        return;
       }
-    });
+
+      // ถ้าไม่มี Attendance ให้เช็ค LeaveRequest แทน
+      try {
+        const [Y, M] = dateYmd.split('-').map(Number);
+        const res = await firstValueFrom(this.http.get<any>(`/api/leaves`, { params: { employeeId: empId, year: String(Y), month: String(M) } }));
+        const found = (res || []).find((l: any) => {
+          const d = new Date(l.leave_date);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${dd}` === dateYmd;
+        });
+        if (!found) {
+          this.openAlert('ไม่มีข้อมูลสำหรับวันนั้น', 'ยังไม่มีบันทึกของพนักงานคนนี้ให้ลบ');
+          return;
+        }
+
+        this.openConfirm('ลบใบลา?', 'คุณต้องการลบรายการลาใช่หรือไม่?', async () => {
+          this.closeConfirm();
+          try {
+            await firstValueFrom(this.http.delete(`/api/leaves/${found.leave_id}`));
+            // หลังลบ ให้ตั้ง EDS เป็น NOT_CHECKED_IN แบบ manual เพื่อให้ UI แสดงว่า "ยังไม่มีข้อมูล"
+            await firstValueFrom(this.http.post(`/api/employee-day-status/upsert`, {
+              employeeId: empId,
+              date: dateYmd,
+              status: 'NOT_CHECKED_IN',
+            }));
+            await this.refreshMonth();
+            this.openAlert('สำเร็จ', 'ลบใบลาเรียบร้อย');
+          } catch (err) {
+            console.error('[clickDelete] delete leave failed', err);
+            this.openAlert('ผิดพลาด', 'ลบข้อมูลไม่สำเร็จ');
+          }
+        });
+      } catch (err) {
+        console.error('[clickDelete] find leave failed', err);
+        this.openAlert('ผิดพลาด', 'ไม่สามารถตรวจสอบการลาได้');
+      }
   }
 
   private toHHMMLocal(dateStr: string) {
@@ -525,6 +588,47 @@ async saveEdit() {
       this.closeEdit();
       await this.refreshMonth();
       this.openAlert('สำเร็จ', 'บันทึกขาดงานแล้ว');
+      return;
+    }
+
+    // 3) LEAVE -> สร้างหรืออัปเดต LeaveRequest
+    if (this.edit.form.status === 'LEAVE') {
+      // ลบ attendance ถ้ามี
+      if (this.edit.id) {
+        try { await firstValueFrom(this.http.delete(`${this.attendanceApi}/${this.edit.id}`)); } catch {}
+      }
+
+      try {
+        const payload = {
+          employee_id: empId,
+          leave_date: ymd,
+          leave_type: 'OTHER',
+          reason: this.edit.form.note || null,
+          approved_by: 1,
+        };
+
+        if (this.edit.leaveId) {
+          // update
+          try {
+            await firstValueFrom(this.http.put(`/api/leaves/${this.edit.leaveId}`, payload));
+          } catch (err) {
+            if ((err as any)?.status !== 409) console.warn('[saveEdit] update leave failed', err);
+          }
+        } else {
+          // create
+          try {
+            await firstValueFrom(this.http.post(`/api/leaves`, payload));
+          } catch (err) {
+            if ((err as any)?.status !== 409) console.warn('[saveEdit] create leave failed', err);
+          }
+        }
+      } catch (err) {
+        console.error('[saveEdit] save leave failed', err);
+      }
+
+      this.closeEdit();
+      await this.refreshMonth();
+      this.openAlert('สำเร็จ', 'บันทึกการลาเรียบร้อย');
       return;
     }
 

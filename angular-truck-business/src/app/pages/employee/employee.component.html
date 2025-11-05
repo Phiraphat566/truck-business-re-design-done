@@ -357,8 +357,14 @@
   </div>
 
   <!-- Toast -->
-  <div *ngIf="showToast" class="fixed top-6 right-6 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-[100] flex items-center space-x-3">
-    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+  <div *ngIf="showToast" class="fixed top-6 right-6 text-white px-6 py-4 rounded-lg shadow-lg z-[100] flex items-center space-x-3"
+       [ngClass]="toastError ? 'bg-rose-600' : 'bg-emerald-500'">
+    <ng-container *ngIf="!toastError">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+    </ng-container>
+    <ng-container *ngIf="toastError">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    </ng-container>
     <span class="font-medium">{{ toastMessage }}</span>
   </div>
 

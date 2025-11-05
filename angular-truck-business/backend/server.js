@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 
-// routes (ของเดิม)
+// routes 
 import employeeRoutes from './routes/employeeRoutes.js';
 import attendanceRoutes from './routes/attendanceRoutes.js';
 import jobAssignmentRoutes from './routes/jobAssignmentRoutes.js';

@@ -67,6 +67,7 @@ export class EmployeeComponent implements OnInit, OnDestroy {
   deleteIndex: number | null = null;
   showToast = false;
   toastMessage = '';
+  toastError = false;
   isLoading = false;
 
   searchTerm = '';
@@ -170,9 +171,11 @@ export class EmployeeComponent implements OnInit, OnDestroy {
       await firstValueFrom(this.http.delete(`${this.apiBase}/employees/${id}`));
       this.employees.splice(index, 1);
       this.toastMessage = 'ลบข้อมูลพนักงานเรียบร้อยแล้ว';
+      this.toastError = false;
     } catch (err) {
       console.error(err);
       this.toastMessage = 'ลบไม่สำเร็จ';
+      this.toastError = true;
     } finally {
       this.isLoading = false;
       this.showDeleteConfirm = false;
@@ -213,17 +216,20 @@ export class EmployeeComponent implements OnInit, OnDestroy {
         if (this.selectedFile) await this.uploadPhoto(id, this.selectedFile);
         await this.loadEmployees();
         this.toastMessage = 'แก้ไขข้อมูลพนักงานเรียบร้อยแล้ว';
+        this.toastError = false;
       } else {
         const created = await firstValueFrom(this.http.post<ApiEmployee>(`${this.apiBase}/employees`, this.toApi(this.form)));
         if (this.selectedFile) await this.uploadPhoto(created.id, this.selectedFile);
         await this.loadEmployees();
         this.toastMessage = 'เพิ่มพนักงานใหม่เรียบร้อยแล้ว';
+        this.toastError = false;
       }
       this.closePopup();
       this.showToast = true; setTimeout(() => (this.showToast = false), 3000);
     } catch (err) {
       console.error(err);
       this.toastMessage = 'อัปโหลดหรือบันทึกไม่สำเร็จ';
+      this.toastError = true;
       this.showToast = true; setTimeout(() => (this.showToast = false), 3000);
     } finally { this.isLoading = false; }
   }
@@ -252,8 +258,8 @@ export class EmployeeComponent implements OnInit, OnDestroy {
     const input = evt.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) { this.toastMessage = 'กรุณาเลือกไฟล์รูปภาพเท่านั้น'; this.showToast = true; setTimeout(()=>this.showToast=false, 2500); return; }
-    if (file.size > this.maxImageSize) { this.toastMessage = 'ขนาดไฟล์รูปภาพต้องไม่เกิน 5MB'; this.showToast = true; setTimeout(()=>this.showToast=false, 2500); return; }
+  if (!file.type.startsWith('image/')) { this.toastMessage = 'กรุณาเลือกไฟล์รูปภาพเท่านั้น'; this.toastError = true; this.showToast = true; setTimeout(()=>this.showToast=false, 2500); return; }
+  if (file.size > this.maxImageSize) { this.toastMessage = 'ขนาดไฟล์รูปภาพต้องไม่เกิน 5MB'; this.toastError = true; this.showToast = true; setTimeout(()=>this.showToast=false, 2500); return; }
     this.selectedFile = file;
     const reader = new FileReader();
     reader.onload = () => { this.imagePreview = reader.result as string; };
@@ -306,6 +312,7 @@ export class EmployeeComponent implements OnInit, OnDestroy {
     } catch (err) {
       console.error(err);
       this.toastMessage = 'โหลดรายชื่อพนักงานไม่สำเร็จ';
+      this.toastError = true;
       this.showToast = true; setTimeout(() => (this.showToast = false), 3000);
     }
   }
@@ -394,21 +401,25 @@ export class EmployeeComponent implements OnInit, OnDestroy {
         const payload = { employeeId: this.att.employeeId, workDate: this.att.date, checkIn: this.joinLocalDateTime(this.att.date, this.att.time), status: this.att.arrival };
         await firstValueFrom(this.http.post(`${this.apiBase}/attendance`, payload));
         this.toastMessage = 'บันทึก Check-in เรียบร้อย';
+        this.toastError = false;
       }
       if (this.att.mode === 'OUT') {
         const payload = { employeeId: this.att.employeeId, workDate: this.att.date, checkOut: this.joinLocalDateTime(this.att.date, this.att.time) };
         await firstValueFrom(this.http.post(`${this.apiBase}/attendance/check-out`, payload));
         this.toastMessage = 'บันทึก Check-out เรียบร้อย';
+        this.toastError = false;
       }
       if (this.att.mode === 'LEAVE') {
         const payload = { employee_id: this.att.employeeId, leave_date: this.att.date, leave_type: this.att.leave_type, reason: this.att.reason || null, approved_by: Number(this.att.approved_by || 0) };
         await firstValueFrom(this.http.post(`${this.apiBase}/leaves`, payload));
         this.toastMessage = 'บันทึกลางานเรียบร้อย';
+        this.toastError = false;
       }
       if (this.att.mode === 'ABSENT') {
         const payload = { employeeId: this.att.employeeId, date: this.att.date, status: 'ABSENT', source: 'MANUAL', note: this.att.absent_note || null };
         await firstValueFrom(this.http.post(`${this.apiBase}/employee-day-status/upsert`, payload));
         this.toastMessage = 'บันทึกขาดงานเรียบร้อย';
+        this.toastError = false;
       }
       await this.refreshDayStatuses();
       this.showToast = true; this.closeAttModal(); setTimeout(() => (this.showToast = false), 3000);
@@ -417,6 +428,7 @@ export class EmployeeComponent implements OnInit, OnDestroy {
       if (err?.status === 409) this.toastMessage = 'วันนี้บันทึกซ้ำ: อาจเช็คอินไปแล้ว';
       else if (err?.status === 404 && this.att.mode === 'OUT') this.toastMessage = 'ยังไม่มี Check-in ของวันนี้';
       else this.toastMessage = 'บันทึกไม่สำเร็จ';
+      this.toastError = true;
       this.showToast = true; setTimeout(() => (this.showToast = false), 3000);
     } finally { this.isLoading = false; }
   }
@@ -449,11 +461,13 @@ export class EmployeeComponent implements OnInit, OnDestroy {
       await this.refreshDayStatuses();
       if (this.selectedEmployee?.id === a.employeeId) await this.loadJobHistory(a.employeeId);
       this.toastMessage = 'มอบหมายงานเรียบร้อย';
+      this.toastError = false;
       this.showToast = true; setTimeout(() => (this.showToast = false), 3000);
       this.closeAssignModal();
     } catch (e) {
       console.error(e);
       this.toastMessage = 'มอบหมายงานไม่สำเร็จ';
+      this.toastError = true;
       this.showToast = true; setTimeout(() => (this.showToast = false), 3000);
     } finally { this.isLoading = false; }
   }

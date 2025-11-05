@@ -1,5 +1,7 @@
 // backend/controllers/employeeDayStatusController.js
-import { PrismaClient, DayStatus, DaySource } from '@prisma/client';
+import pkg from '@prisma/client';
+const { PrismaClient, DayStatus, DaySource } = pkg;
+
 const prisma = new PrismaClient();
 
 /* -------------------------------- utils -------------------------------- */
@@ -64,8 +66,6 @@ async function computeStatusFor(empId, ymd) {
 }
 
 /* ---------- GET /api/employee-day-status?date=YYYY-MM-DD[&materialize=1] ---------- */
-/* คืน { employee_id, status } ครบทุกพนักงาน; ถ้าไม่มี EDS จะคำนวณสดจากใบลา/attendance ให้
-   ถ้าใส่ materialize=1 จะ upsert ลงตาราง EmployeeDayStatus ให้ด้วย */
 export async function listByDate(req, res) {
   try {
     const ymd = String(req.query.date || todayYmd());
@@ -80,7 +80,7 @@ export async function listByDate(req, res) {
 
     const result = [];
     for (const e of employees) {
-      // ถ้ามี EDS อยู่แล้ว -> ใช้เลย
+     
       const eds = await prisma.employeeDayStatus.findUnique({
         where: { employee_id_work_date: { employee_id: e.id, work_date: wd } },
         select: { status: true, source: true },
@@ -91,11 +91,10 @@ export async function listByDate(req, res) {
         continue;
       }
 
-      // ไม่มี -> คำนวณจาก leave/attendance
+     
       const { status, source } = await computeStatusFor(e.id, ymd);
       result.push({ employee_id: e.id, status });
 
-      // ถ้าต้องการ materialize ก็ upsert ลง DB
       if (materialize) {
         await prisma.employeeDayStatus.upsert({
           where: { employee_id_work_date: { employee_id: e.id, work_date: wd } },
@@ -124,7 +123,7 @@ export async function getOne(req, res) {
       select: { employee_id: true, work_date: true, status: true },
     });
 
-    // ถ้าไม่มี แถมคำนวณให้ (ไม่ materialize)
+
     if (!row) {
       const { status } = await computeStatusFor(employeeId, ymd);
       return res.json({ employee_id: employeeId, work_date: wd, status });
@@ -138,8 +137,7 @@ export async function getOne(req, res) {
 }
 
 /* ---------- POST /api/employee-day-status/upsert ---------- */
-/* body: { employeeId, date(YYYY-MM-DD), status, source? }
-   ใช้มาร์คสถานะ manual (เช่น ขาดงาน/ลา) */
+
 export async function upsert(req, res) {
   try {
     const { employeeId, date, status, source } = req.body;
@@ -172,9 +170,7 @@ export async function upsert(req, res) {
 }
 
 /* ------------------------- OPTIONAL UTIL ENDPOINTS ------------------------- */
-/* ทางเลือก: ใช้สำหรับรีบิลด์/เติม EDS ทั้งเดือนให้ “ครบ” เวลาอยากให้ summary ไปพึ่ง EDS ได้เต็มๆ
-   - POST /api/employee-day-status/materialize-month  body: { year: 2025, month: 8 }
-*/
+
 export async function materializeMonth(req, res) {
   try {
     const year = Number(req.body?.year);

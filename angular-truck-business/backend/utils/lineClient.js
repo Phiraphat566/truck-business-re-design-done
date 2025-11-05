@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const token = process.env.LINE_CHANNEL_ACCESS_TOKEN; // ใส่ใน .env
+const token = process.env.LINE_CHANNEL_ACCESS_TOKEN; 
 export const lineClient = {
   replyMessage(body) {
     return axios.post('https://api.line.me/v2/bot/message/reply', body, {

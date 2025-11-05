@@ -1,5 +1,7 @@
 // backend/services/dayStatus.js
-import { PrismaClient, DayStatus, DaySource } from '@prisma/client';
+import pkg from '@prisma/client';
+const { PrismaClient, DayStatus, DaySource } = pkg;
+
 import { normalizeYMDToUTC, dayRangeUTC, ymdUTC } from '../utils/date.js';
 
 const prisma = new PrismaClient();
