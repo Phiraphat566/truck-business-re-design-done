@@ -16,6 +16,25 @@
 
 ---
 
+##  เทคโนโลยีและสถาปัตยกรรม (Tech Stack)
+
+- **Architecture:** 3-Tier Architecture (Client / Server / Database)
+- **Frontend:** Angular Framework, TypeScript, HTML5, SCSS / CSS3
+- **Backend:** Node.js, Express.js
+- **Database & ORM:** MySQL, Prisma ORM
+- **Third-Party Integration:** LINE Messaging API
+- **Tools:** Postman, Docker, Git
+
+---
+
+##  การนำเสนอผลงานวิชาการ (Academic Publication)
+งานวิจัยและระบบนี้ได้รับการนำเสนอและเผยแพร่ใน:
+* **The 14th Asia Undergraduate Conference on Computing (AUCC 2026)**
+* 📄 [อ่านบทความวิจัยฉบับเต็ม (PDF)](https://github.com/user-attachments/files/32413941/AUCC2026_OralThai-Website.for.Managing.Truck.Business.pdf.pdf)
+* 🏆 [เกียรติบัตรรางวัล (PDF)](https://github.com/user-attachments/files/32413947/AUCC-Award-Certificate.pdf)
+  
+---
+
 ##  ภาพตัวอย่างระบบ (Screenshots)
 Login Page
 <img width="1917" height="1078" alt="login" src="https://github.com/user-attachments/assets/1e977502-24a8-4517-a581-acf30e1a5f52" />
@@ -67,25 +86,7 @@ Line Page
 <img width="1917" height="1078" alt="line" src="https://github.com/user-attachments/assets/75701069-824f-4dba-804a-0c65ad1d5d70" />
 <img width="1917" height="1078" alt="line2" src="https://github.com/user-attachments/assets/59e05e59-0086-479c-b216-c6b9a3a1ad67" />
 
-
-> *(คุณสามารถลากไฟล์รูปภาพที่แคปไว้มาวางหยอดตรงนี้ได้เลย GitHub จะสร้างลิงก์รูปให้อัตโนมัติ)*
-
 ---
 
-##  เทคโนโลยีและสถาปัตยกรรม (Tech Stack)
 
-- **Architecture:** 3-Tier Architecture (Client / Server / Database)
-- **Frontend:** Angular Framework, TypeScript, HTML5, SCSS / CSS3
-- **Backend:** Node.js, Express.js
-- **Database & ORM:** MySQL, Prisma ORM
-- **Third-Party Integration:** LINE Messaging API
-- **Tools:** Postman, Docker, Git
-
----
-
-##  การนำเสนอผลงานวิชาการ (Academic Publication)
-งานวิจัยและระบบนี้ได้รับการนำเสนอและเผยแพร่ใน:
-* **The 14th Asia Undergraduate Conference on Computing (AUCC 2026)**
-* 📄 [อ่านบทความวิจัยฉบับเต็ม (PDF)](https://github.com/user-attachments/files/32413941/AUCC2026_OralThai-Website.for.Managing.Truck.Business.pdf.pdf)
-* 🏆 [เกียรติบัตรรางวัล (PDF)](https://github.com/user-attachments/files/32413947/AUCC-Award-Certificate.pdf)
 
