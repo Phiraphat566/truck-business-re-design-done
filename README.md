@@ -23,7 +23,7 @@
 - **Backend:** Node.js, Express.js
 - **Database & ORM:** MySQL, Prisma ORM
 - **Third-Party Integration:** LINE Messaging API
-- **Tools:** Postman, Docker, Git
+- **Tools:** Postman, Docker, Github
 
 ---
 
